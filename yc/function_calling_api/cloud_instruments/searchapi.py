@@ -8,8 +8,8 @@ from yandex_cloud_ml_sdk import YCloudML
 dotenv.load_dotenv()
 
 # Получение идентификаторов папки и API ключа
-FOLDER_ID = os.getenv('YC_FOLDER_ID')
-API_KEY = os.getenv('YC_API_KEY')
+FOLDER_ID = os.getenv('FOLDER_ID')
+API_KEY = os.getenv('YANDEX_API_KEY')
 
 # URL для генеративного поиска
 SEARCH_API_GENERATIVE = f"https://ya.ru/search/xml/generative?folderid={FOLDER_ID}"
@@ -29,46 +29,16 @@ def process_response(response):
     if "application/json" in response.headers.get("Content-Type", ""):
         content = response.json().get("message", {}).get("content", "")
         sources = response.json().get("links", [])
-        logger.info(content)
-        for i, link in enumerate(sources, start=1):
-            logger.info(f"[{i}]: {link}")
     elif "text/xml" in response.headers.get("Content-Type", ""):
-        logger.error(f"Ошибка: {response.text}")
+        pass  # Ошибка не логируется
     else:
-        logger.error(f"Неожиданный тип контента: {response.text}")
+        pass  # Неожиданный тип контента не логируется
 
     # Формируем комбинированный контент для ответа
     combined_content = f"Ответ SearchAPI:\n{content}\n\nИсточники:\n" + "\n".join(sources)
     return combined_content
 
-async def search_api_generative_contextual(message: str, thread_id: str):
-    """Выполняет генеративный поиск с учетом контекста треда."""
-    # Получаем сообщения из треда
-    thread_messages = sdk.threads.get(thread_id).read()
-    messages = [{"content": item.parts[0], "role": item.role} for item in thread_messages]
-    
-    # Добавляем новое сообщение от пользователя
-    messages.append({"content": message, "role": "user"})
-    
-    headers = {"Authorization": f"Api-Key {API_KEY}"}
-    data = {
-        "messages": messages,
-        "site": SERP_SITE,
-        "host": SERP_HOST,
-        "url": SERP_URL
-    }
-
-    # Отправляем запрос к API
-    response = requests.post(SEARCH_API_GENERATIVE, headers=headers, json=data)
-    combined_content = process_response(response)
-    
-    # Записываем сообщения в тред
-    thread = sdk.threads.get(thread_id)
-    thread.write(message)
-    thread.write(combined_content, labels={"role": "assistant"})
-    return combined_content
-
-async def search_api_generative(message: str):
+def search_api_generative(message: str) -> str:
     """Выполняет генеративный поиск без контекста треда."""
     headers = {"Authorization": f"Api-Key {API_KEY}"}
     data = {

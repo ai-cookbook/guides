@@ -4,6 +4,8 @@ from tenacity import retry, wait_random_exponential, stop_after_attempt
 import os
 import sqlite3
 from termcolor import colored  
+from cloud_instruments.searchapi import search_api_generative
+from cloud_instruments.serverless_func import send_post_request
 
 GPT_MODEL = "yandexgpt/rc"
 FOLDER_ID = os.getenv('FOLDER_ID') or ''
@@ -72,7 +74,8 @@ def pack_function_result(name: str, content: str):
     }
 
 def process_tool_product_list_tool(category: str, priceMinMax: list[int], sortBy: str = 'price') -> list[dict]:
-    return [{'productId': 'siaomi453', 'name': 'сяоми 4+ pro', 'category': category, 'price': priceMinMax[1]}]
+    return [{'productId': 'siaomi453', 'name': 'сяоми 4+ pro', 'category': category, 'price': 10_000},
+            {'productId': 'iphone15', 'name': 'iphone 15', 'category': category, 'price': 280_000}]
 
 def process_tool_balance_tool(userId: str) -> dict:
     # Обработка аргументов: userId
@@ -90,12 +93,21 @@ def process_tool_sql_tool(query: str) -> str:
     conn.close()
     return result
 
+def process_tool_searchapi(query: str) -> str:
+    return search_api_generative(query)
+
+def process_tool_serverless_func(name: str) -> str:
+    return send_post_request(name)
+
+
 def process_functions(toolCalls):
     tools_map = {
         "ProductListTool": process_tool_product_list_tool,
         "BalanceTool": process_tool_balance_tool,
         "OrderTool": process_tool_order_tool,
-        "ask_database": process_tool_sql_tool
+        "ask_database": process_tool_sql_tool,
+        "searchapi": process_tool_searchapi,
+        "serverless_func": process_tool_serverless_func
     }
     
     results = []
@@ -131,7 +143,7 @@ def pretty_print_conversation(messages):
 
 if __name__ == '__main__':
     test_messages = [
-        {"role": "system", "text": "Ты - полезный бот, который помогает пользователю с его проблемами. Ты можешь использовать инструменты, чтобы получить актуальную информацию. Но пользоваться ими нужно не всегда. "},
+        {"role": "system", "text": "Ты - полезный бот, который помогает пользователю с его проблемами. Ты можешь использовать инструменты, чтобы получить актуальную информацию. Но пользоваться ими нужно не всегда."},
         {"role": "user", "text": "Сколько у меня денег на балансе?"}
     ]
     
