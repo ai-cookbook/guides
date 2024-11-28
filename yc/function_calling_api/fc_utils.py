@@ -62,10 +62,14 @@ def chat_completion_request(messages, tools=None, model=GPT_MODEL):
         print(f"Error occurred: {e}")
         raise e
     
-def get_function_call_from_response(response):
-    return response['result']['alternatives'][0]['message'].get('toolCallList', {}).get('toolCalls', [])
+from typing import List, Dict, Any
 
-def pack_function_result(name: str, content: str):
+def get_function_call_from_response(response: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Извлекает список вызовов функций из ответа."""
+    return response.get('result', {}).get('alternatives', [{}])[0].get('message', {}).get('toolCallList', {}).get('toolCalls', [])
+
+def pack_function_result(name: str, content: Any) -> Dict[str, Any]:
+    """Упаковывает результат функции в стандартный формат."""
     return {
         "functionResult": {
             "name": name,
@@ -73,34 +77,50 @@ def pack_function_result(name: str, content: str):
         }
     }
 
-def process_tool_product_list_tool(category: str, priceMinMax: list[int], sortBy: str = 'price') -> list[dict]:
-    return [{'productId': 'siaomi453', 'name': 'сяоми 4+ pro', 'category': category, 'price': 10_000},
-            {'productId': 'iphone15', 'name': 'iphone 15', 'category': category, 'price': 280_000}]
+def process_tool_product_list_tool(category: str, priceMinMax: List[int], sortBy: str = 'price') -> List[Dict[str, Any]]:
+    """Обрабатывает запрос на получение списка продуктов."""
+    # Здесь можно добавить логику для получения реальных данных
+    return [
+        {'productId': 'siaomi453', 'name': 'сяоми 4+ pro', 'category': category, 'price': 10_000},
+        {'productId': 'iphone15', 'name': 'iphone 15', 'category': category, 'price': 280_000}
+    ]
 
-def process_tool_balance_tool(userId: str) -> dict:
-    # Обработка аргументов: userId
+def process_tool_balance_tool(userId: str) -> Dict[str, Any]:
+    """Обрабатывает запрос на получение баланса пользователя."""
+    # Здесь можно добавить логику для получения реального баланса
     return {'userId': userId, 'balance': 10000}
 
-def process_tool_order_tool(productId: str, quantity: int) -> dict:
-    # Обработка аргументов: productId, quantity
-    return {'orderId': 'order123', 'productId': productId, 'quantity': quantity}    
+def process_tool_order_tool(productId: str, quantity: int) -> Dict[str, Any]:
+    """Обрабатывает запрос на создание заказа."""
+    # Здесь можно добавить логику для обработки заказа
+    return {'orderId': 'order123', 'productId': productId, 'quantity': quantity}
 
-def process_tool_sql_tool(query: str) -> str:
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    cursor.execute(query)
-    result = cursor.fetchall()
-    conn.close()
-    return result
+def process_tool_sql_tool(query: str) -> List[tuple]:
+    """Обрабатывает SQL-запрос и возвращает результаты."""
+    conn = None
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute(query)
+        result = cursor.fetchall()
+        return result
+    except sqlite3.Error as e:
+        print(f"Ошибка при выполнении SQL-запроса: {e}")
+        return []
+    finally:
+        if conn:
+            conn.close()
 
 def process_tool_searchapi(query: str) -> str:
+    """Обрабатывает запрос к поисковому API."""
     return search_api_generative(query)
 
 def process_tool_serverless_func(name: str) -> str:
+    """Обрабатывает вызов серверной функции."""
     return send_post_request(name)
 
-
-def process_functions(toolCalls):
+def process_functions(toolCalls: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Обрабатывает список вызовов инструментов и возвращает результаты."""
     tools_map = {
         "ProductListTool": process_tool_product_list_tool,
         "BalanceTool": process_tool_balance_tool,
@@ -117,7 +137,6 @@ def process_functions(toolCalls):
         if name in tools_map:
             # Вызываем функцию с переданными аргументами
             result = tools_map[name](**arguments)
-            
             results.append(pack_function_result(name, result))
     
     return results
